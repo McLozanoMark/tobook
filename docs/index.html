@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Planner terapéutico TDAH - nube</title>
+  <style>
+    :root {
+      --bg: #f6f3ee;
+      --paper: #fffdf9;
+      --ink: #2f2a24;
+      --muted: #6d655c;
+      --line: #d8cfc3;
+      --accent: #7b6a58;
+      --accent-soft: #efe7dc;
+      --ok: #dcebdc;
+      --focus: #f6e7c8;
+      --warn: #f3d9d9;
+      --danger: #b65454;
+      --shadow: 0 8px 24px rgba(0,0,0,.06);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.35;
+      padding: 10px;
+    }
+
+    .hidden { display: none !important; }
+    .app { max-width: 1160px; margin: 0 auto; }
+
+    .topbar {
+      position: sticky;
+      top: 8px;
+      z-index: 40;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      margin-bottom: 12px;
+      background: rgba(255,253,249,.95);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 10px;
+      box-shadow: var(--shadow);
+    }
+
+    .toolbar, .toolbar-right {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 14px;
+    }
+
+    .sidebar, .page, .auth-card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .sidebar {
+      padding: 16px;
+      position: sticky;
+      top: 90px;
+      align-self: start;
+      max-height: calc(100vh - 110px);
+      overflow: auto;
+    }
+
+    .page { padding: 22px; margin-bottom: 14px; }
+    .auth-wrap { max-width: 860px; margin: 24px auto; }
+    .auth-card { padding: 22px; }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { font-size: 28px; margin-bottom: 8px; letter-spacing: .4px; }
+    h2.section-title { font-size: 18px; margin-bottom: 12px; }
+    .subtitle, .muted, .tiny { color: var(--muted); }
+    .subtitle { margin-bottom: 20px; }
+    .tiny { font-size: 12px; }
+
+    .grid { display: grid; gap: 14px; }
+    .grid-2 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+
+    .card {
+      border: 1px solid var(--line);
+      background: white;
+      padding: 16px;
+      border-radius: 16px;
+    }
+
+    .card.soft { background: var(--accent-soft); }
+    .card.ok { background: var(--ok); }
+    .card.focus { background: var(--focus); }
+    .card.warn { background: var(--warn); }
+
+    .label {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    input[type="text"],
+    input[type="date"],
+    input[type="email"],
+    input[type="password"],
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 16px;
+      font-family: inherit;
+      background: #fff;
+      color: var(--ink);
+      appearance: none;
+    }
+
+    textarea { min-height: 90px; resize: vertical; }
+    .big textarea { min-height: 130px; }
+    .xl textarea { min-height: 250px; }
+
+    .row {
+      display: grid;
+      grid-template-columns: 115px 1fr 100px 90px 120px;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: start;
+    }
+
+    .row.header {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+    }
+
+    .btn, .chip {
+      border: 1px solid var(--line);
+      background: white;
+      color: var(--ink);
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .btn.active, .btn.primary {
+      background: var(--accent-soft);
+      font-weight: 700;
+    }
+
+    .btn.danger {
+      color: var(--danger);
+      border-color: #ddbbbb;
+    }
+
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+      padding: 0 6px;
+    }
+
+    .message {
+      padding: 12px 14px;
+      border-radius: 12px;
+      margin-bottom: 14px;
+      border: 1px solid var(--line);
+      background: white;
+      font-size: 14px;
+    }
+
+    .message.ok { background: #f0f8ef; border-color: #cfe1ce; }
+    .message.warn { background: #fff6ea; border-color: #e6d4b6; }
+    .message.error { background: #fff0f0; border-color: #e3c0c0; }
+
+    .draw-zone {
+      border: 2px dashed var(--line);
+      border-radius: 16px;
+      min-height: 280px;
+      background: repeating-linear-gradient(to bottom, #fffdf9 0, #fffdf9 31px, #ece4d8 32px);
+      padding: 12px;
+      display: none;
+    }
+
+    .draw-zone.large { min-height: 420px; }
+    .keyboard-zone { display: block; }
+    .mode-draw .draw-zone { display: block; }
+    .mode-draw .keyboard-zone { display: none; }
+    .mode-keyboard .draw-zone { display: none; }
+    .mode-keyboard .keyboard-zone { display: block; }
+
+    .history-list { display: grid; gap: 8px; margin-top: 12px; }
+    .history-item {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: white;
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+    .history-title { font-size: 13px; font-weight: 700; }
+    .history-preview { font-size: 12px; color: var(--muted); line-height: 1.4; }
+    .history-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .hr { height: 1px; background: var(--line); margin: 14px 0; }
+    .section-nav { display: grid; gap: 8px; }
+    .section-nav a {
+      text-decoration: none;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: white;
+      font-size: 14px;
+    }
+    .empty-note {
+      font-size: 13px;
+      color: var(--muted);
+      padding: 10px;
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      background: white;
+    }
+
+    code.inline {
+      background: #f4eee6;
+      border: 1px solid #e2d6c7;
+      border-radius: 8px;
+      padding: 2px 6px;
+      font-family: Consolas, monospace;
+      font-size: 13px;
+    }
+
+    @media print {
+      body { background: white; padding: 0; }
+      .topbar, .sidebar, #authView { display: none !important; }
+      .layout { display: block; }
+      .page {
+        box-shadow: none;
+        border: none;
+        margin: 0 0 20px 0;
+        page-break-after: always;
+      }
+      .page:last-child { page-break-after: auto; }
+      .draw-zone { display: block !important; }
+      .keyboard-zone { display: none !important; }
+    }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; max-height: none; }
+      .topbar { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 760px) {
+      h1 { font-size: 24px; }
+      .page, .auth-card { padding: 16px; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .row { grid-template-columns: 1fr; }
+      .row.header { display: none; }
+      .btn, .chip { font-size: 13px; padding: 10px 12px; }
+      .draw-zone.large { min-height: 360px; }
+    }
+  </style>
+</head>
+<body class="mode-keyboard">
+  <div class="app">
+    <div id="authView" class="auth-wrap">
+      <div class="auth-card">
+        <h1>Planner terapéutico en la nube</h1>
+        <p class="subtitle">Hecho para GitHub Pages + Supabase. Primero conecta tu proyecto y luego entra con email y contraseña.</p>
+
+        <div id="authMessage" class="message warn">Antes de usarlo, completa la configuración de Supabase. Luego podrás registrarte, iniciar sesión y guardar tus registros en la nube.</div>
+
+        <div class="grid grid-2">
+          <div class="card soft">
+            <h2 class="section-title">1) Configuración</h2>
+            <label class="label">Supabase URL</label>
+            <input id="supabaseUrlInput" type="text" placeholder="https://TU-PROYECTO.supabase.co" />
+            <label class="label" style="margin-top:12px;">Supabase anon key</label>
+            <textarea id="supabaseAnonKeyInput" placeholder="Pega aquí tu anon key"></textarea>
+            <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+              <button id="saveConfigBtn" class="btn primary" type="button">Guardar configuración</button>
+              <button id="clearConfigBtn" class="btn danger" type="button">Limpiar configuración</button>
+            </div>
+            <p class="tiny" style="margin-top:12px;">Esta configuración se guarda solo en tu navegador. Luego subes este mismo archivo a GitHub Pages.</p>
+          </div>
+
+          <div class="card">
+            <h2 class="section-title">2) Acceso</h2>
+            <label class="label">Email</label>
+            <input id="authEmail" type="email" placeholder="tu@email.com" />
+            <label class="label" style="margin-top:12px;">Contraseña</label>
+            <input id="authPassword" type="password" placeholder="Tu contraseña" />
+            <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+              <button id="signInBtn" class="btn primary" type="button">Iniciar sesión</button>
+              <button id="signUpBtn" class="btn" type="button">Crear cuenta</button>
+              <button id="forgotBtn" class="btn" type="button">Enviar reset</button>
+            </div>
+            <p class="tiny" style="margin-top:12px;">Con confirmación por correo activada en Supabase, necesitarás revisar tu email al crear cuenta.</p>
+          </div>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="card">
+          <h2 class="section-title">3) SQL para crear la base de datos</h2>
+          <p class="tiny">Pega esto en el SQL Editor de Supabase una sola vez.</p>
+          <textarea readonly style="min-height:280px; font-family:Consolas, monospace; font-size:13px;">create extension if not exists pgcrypto;
+
+create table if not exists public.journal_entries (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  entry_date date not null,
+  payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id, entry_date)
+);
+
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+ drop trigger if exists trg_journal_entries_updated_at on public.journal_entries;
+ create trigger trg_journal_entries_updated_at
+ before update on public.journal_entries
+ for each row execute function public.set_updated_at();
+
+alter table public.journal_entries enable row level security;
+
+create policy "users_select_own_entries"
+on public.journal_entries
+for select
+using (auth.uid() = user_id);
+
+create policy "users_insert_own_entries"
+on public.journal_entries
+for insert
+with check (auth.uid() = user_id);
+
+create policy "users_update_own_entries"
+on public.journal_entries
+for update
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+create policy "users_delete_own_entries"
+on public.journal_entries
+for delete
+using (auth.uid() = user_id);</textarea>
+        </div>
+      </div>
+    </div>
+
+    <div id="appView" class="hidden">
+      <div class="topbar">
+        <div class="toolbar">
+          <button class="btn active" id="btnKeyboard" type="button">Modo teclado</button>
+          <button class="btn" id="btnDraw" type="button">Modo lápiz</button>
+          <button class="btn" id="btnToday" type="button">Ir a hoy</button>
+          <button class="btn" id="btnClearDay" type="button">Limpiar día actual</button>
+        </div>
+        <div class="toolbar-right">
+          <button class="btn primary" id="btnSaveCloud" type="button">Guardar en nube</button>
+          <button class="btn" id="btnReloadCloud" type="button">Recargar</button>
+          <button class="btn" id="btnSignOut" type="button">Cerrar sesión</button>
+          <span class="status" id="saveStatus">Listo</span>
+        </div>
+      </div>
+
+      <div class="layout">
+        <aside class="sidebar">
+          <h2 class="section-title">Tu cuenta</h2>
+          <p class="tiny" id="currentUserEmail">Sin sesión</p>
+          <div class="card">
+            <label class="label" for="entryDate">Fecha del registro</label>
+            <input type="date" id="entryDate" />
+            <p class="tiny" style="margin-top:10px;">Cada fecha guarda un registro distinto en la nube.</p>
+          </div>
+
+          <div class="hr"></div>
+
+          <h3 class="section-title">Navegación</h3>
+          <div class="section-nav">
+            <a href="#pagina-manana">Dirección del día</a>
+            <a href="#pagina-noche">Writing nocturno</a>
+          </div>
+
+          <div class="hr"></div>
+
+          <h3 class="section-title">Historial reciente</h3>
+          <p class="tiny">Tus registros guardados por fecha.</p>
+          <div id="historyList" class="history-list"></div>
+        </aside>
+
+        <main>
+          <section class="page" id="pagina-manana">
+            <h1>Planner terapéutico diario</h1>
+            <p class="subtitle">Dirección del día por la mañana y writing para soltar la carga mental por la noche.</p>
+
+            <div id="appMessage" class="message hidden"></div>
+
+            <div class="grid grid-3">
+              <div class="card">
+                <label class="label">Fecha</label>
+                <input type="date" data-field="displayDate" />
+              </div>
+              <div class="card">
+                <label class="label">Tema del día</label>
+                <input type="text" data-field="dayTheme" placeholder="Ej: enfoque, paz, avance, orden" />
+              </div>
+              <div class="card">
+                <label class="label">Energía</label>
+                <select data-field="energyLevel">
+                  <option value="">Selecciona</option>
+                  <option>Alta</option>
+                  <option>Media</option>
+                  <option>Baja</option>
+                </select>
+              </div>
+            </div>
+
+            <br />
+
+            <div class="grid grid-2">
+              <div class="card ok">
+                <h2 class="section-title">Gratitud presente</h2>
+                <label class="label">Hoy doy gracias por...</label>
+                <textarea class="keyboard-zone" data-field="gratitudeMorning" placeholder="Escribe 3 a 5 cosas concretas"></textarea>
+                <div class="draw-zone" aria-label="Zona para escribir gratitud a mano"></div>
+              </div>
+              <div class="card focus">
+                <h2 class="section-title">Visión agradecida</h2>
+                <label class="label">Agradezco porque ya está ocurriendo...</label>
+                <textarea class="keyboard-zone" data-field="visionGrateful" placeholder="Escribe en positivo, concreto y breve"></textarea>
+                <div class="draw-zone" aria-label="Zona para escribir visión agradecida a mano"></div>
+              </div>
+            </div>
+
+            <br />
+
+            <div class="grid grid-2">
+              <div class="card">
+                <h2 class="section-title">Estado interior</h2>
+                <label class="label">¿Cómo llego hoy?</label>
+                <textarea class="keyboard-zone" data-field="innerState" placeholder="Ej: cansado, esperanzado, inquieto, sereno"></textarea>
+                <div class="draw-zone" aria-label="Zona para escribir estado interior a mano"></div>
+              </div>
+              <div class="card">
+                <h2 class="section-title">Mis 3 prioridades reales</h2>
+                <label class="label">Solo lo esencial</label>
+                <textarea class="keyboard-zone" data-field="topPriorities" placeholder="1.&#10;2.&#10;3."></textarea>
+                <div class="draw-zone" aria-label="Zona para escribir prioridades a mano"></div>
+              </div>
+            </div>
+
+            <br />
+
+            <div class="card">
+              <h2 class="section-title">Timeboxing simple</h2>
+              <p class="tiny">Pocos bloques. Una tarea por bloque. Si te saturas, mueve el bloque sin culpa.</p>
+              <div class="row header">
+                <div>Hora</div>
+                <div>Tarea principal</div>
+                <div>Duración</div>
+                <div>Pausa</div>
+                <div>Estado</div>
+              </div>
+
+              <div class="row">
+                <input type="text" data-field="tb1Time" placeholder="7:00 - 7:30" />
+                <input type="text" data-field="tb1Task" placeholder="Rutina de inicio" />
+                <input type="text" data-field="tb1Duration" placeholder="30 min" />
+                <input type="text" data-field="tb1Break" placeholder="5 min" />
+                <select data-field="tb1Status"><option value=""></option><option>Pendiente</option><option>Hecho</option><option>Movido</option></select>
+              </div>
+              <div class="row">
+                <input type="text" data-field="tb2Time" placeholder="8:00 - 9:00" />
+                <input type="text" data-field="tb2Task" placeholder="Bloque profundo 1" />
+                <input type="text" data-field="tb2Duration" placeholder="60 min" />
+                <input type="text" data-field="tb2Break" placeholder="10 min" />
+                <select data-field="tb2Status"><option value=""></option><option>Pendiente</option><option>Hecho</option><option>Movido</option></select>
+              </div>
+              <div class="row">
+                <input type="text" data-field="tb3Time" placeholder="9:30 - 10:00" />
+                <input type="text" data-field="tb3Task" placeholder="Gestión rápida" />
+                <input type="text" data-field="tb3Duration" placeholder="30 min" />
+                <input type="text" data-field="tb3Break" placeholder="5 min" />
+                <select data-field="tb3Status"><option value=""></option><option>Pendiente</option><option>Hecho</option><option>Movido</option></select>
+              </div>
+              <div class="row">
+                <input type="text" data-field="tb4Time" placeholder="10:15 - 11:15" />
+                <input type="text" data-field="tb4Task" placeholder="Bloque profundo 2" />
+                <input type="text" data-field="tb4Duration" placeholder="60 min" />
+                <input type="text" data-field="tb4Break" placeholder="10 min" />
+                <select data-field="tb4Status"><option value=""></option><option>Pendiente</option><option>Hecho</option><option>Movido</option></select>
+              </div>
+              <div class="row">
+                <input type="text" data-field="tb5Time" placeholder="Tarde" />
+                <input type="text" data-field="tb5Task" placeholder="Bloque flexible" />
+                <input type="text" data-field="tb5Duration" placeholder="30 min" />
+                <input type="text" data-field="tb5Break" placeholder="5 min" />
+                <select data-field="tb5Status"><option value=""></option><option>Pendiente</option><option>Hecho</option><option>Movido</option></select>
+              </div>
+            </div>
+
+            <br />
+
+            <div class="grid grid-2">
+              <div class="card warn">
+                <h2 class="section-title">Distracciones a vigilar</h2>
+                <label class="label">Anticípate</label>
+                <textarea class="keyboard-zone" data-field="distractions" placeholder="Celular, cambiar de tarea, perfeccionismo, ruido, cansancio..."></textarea>
+                <div class="draw-zone" aria-label="Zona para escribir distracciones a mano"></div>
+              </div>
+              <div class="card">
+                <h2 class="section-title">Frase ancla</h2>
+                <label class="label">Cuando me disperse, recordaré:</label>
+                <textarea class="keyboard-zone" data-field="anchorPhrase" placeholder="Ej: No necesito hacerlo perfecto, solo avanzar"></textarea>
+                <div class="draw-zone" aria-label="Zona para escribir frase ancla a mano"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="page" id="pagina-noche">
+            <h1>Writing nocturno</h1>
+            <p class="subtitle">Antes de dormir: no analices, no corrijas, no busques escribir bonito. Solo vacía la mente.</p>
+
+            <div class="card soft xl">
+              <h2 class="section-title">Basura mental</h2>
+              <p class="tiny">Escribe todo lo que esté en tu mente. Pendientes, ansiedad, vergüenza, molestias, miedo, frustración, pensamientos repetitivos.</p>
+              <textarea class="keyboard-zone" data-field="mentalDump" placeholder="Escribe aquí sin filtro..."></textarea>
+              <div class="draw-zone large" aria-label="Zona grande para escribir basura mental a mano"></div>
+            </div>
+
+            <br />
+
+            <div class="grid grid-2">
+              <div class="card big">
+                <h2 class="section-title">Si algo me dolió hoy</h2>
+                <label class="label">Lo que me afectó</label>
+                <textarea class="keyboard-zone" data-field="hurtToday" placeholder="Escribe lo que te pesó o te removió por dentro"></textarea>
+                <div class="draw-zone" aria-label="Zona para escribir lo que dolió a mano"></div>
+              </div>
+              <div class="card big">
+                <h2 class="section-title">Lo que suelto esta noche</h2>
+                <label class="label">No lo cargaré a la cama</label>
+                <textarea class="keyboard-zone" data-field="releaseTonight" placeholder="Escribe lo que decides dejar ir por hoy"></textarea>
+                <div class="draw-zone" aria-label="Zona para escribir lo que sueltas a mano"></div>
+              </div>
+            </div>
+
+            <br />
+
+            <div class="grid grid-2">
+              <div class="card ok big">
+                <h2 class="section-title">Gratitud de cierre</h2>
+                <label class="label">Gracias por hoy...</label>
+                <textarea class="keyboard-zone" data-field="gratitudeNight" placeholder="Cierra con agradecimiento sencillo y real"></textarea>
+                <div class="draw-zone" aria-label="Zona para escribir gratitud de cierre a mano"></div>
+              </div>
+              <div class="card focus big">
+                <h2 class="section-title">Cierre mental</h2>
+                <label class="label">Frase final</label>
+                <textarea class="keyboard-zone" data-field="closingPhrase" placeholder="Hoy fue suficiente. Mañana continúo. Esta noche descanso."></textarea>
+                <div class="draw-zone" aria-label="Zona para escribir cierre mental a mano"></div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const CONFIG_KEY = 'planner_cloud_config_v1';
+    const MODE_KEY = 'planner_cloud_mode_v1';
+
+    const authView = document.getElementById('authView');
+    const appView = document.getElementById('appView');
+    const authMessage = document.getElementById('authMessage');
+    const appMessage = document.getElementById('appMessage');
+    const saveStatus = document.getElementById('saveStatus');
+    const historyList = document.getElementById('historyList');
+    const entryDate = document.getElementById('entryDate');
+    const currentUserEmail = document.getElementById('currentUserEmail');
+
+    const saveConfigBtn = document.getElementById('saveConfigBtn');
+    const clearConfigBtn = document.getElementById('clearConfigBtn');
+    const supabaseUrlInput = document.getElementById('supabaseUrlInput');
+    const supabaseAnonKeyInput = document.getElementById('supabaseAnonKeyInput');
+    const authEmail = document.getElementById('authEmail');
+    const authPassword = document.getElementById('authPassword');
+    const signInBtn = document.getElementById('signInBtn');
+    const signUpBtn = document.getElementById('signUpBtn');
+    const forgotBtn = document.getElementById('forgotBtn');
+
+    const btnKeyboard = document.getElementById('btnKeyboard');
+    const btnDraw = document.getElementById('btnDraw');
+    const btnToday = document.getElementById('btnToday');
+    const btnClearDay = document.getElementById('btnClearDay');
+    const btnSaveCloud = document.getElementById('btnSaveCloud');
+    const btnReloadCloud = document.getElementById('btnReloadCloud');
+    const btnSignOut = document.getElementById('btnSignOut');
+
+    const fields = Array.from(document.querySelectorAll('[data-field]'));
+
+    let supabase = null;
+    let currentUser = null;
+    let autoSaveTimer = null;
+
+    function todayStr() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function getConfig() {
+      try { return JSON.parse(localStorage.getItem(CONFIG_KEY)) || {}; }
+      catch { return {}; }
+    }
+
+    function setConfig(config) {
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+    }
+
+    function clearConfig() {
+      localStorage.removeItem(CONFIG_KEY);
+    }
+
+    function fillConfigInputs() {
+      const config = getConfig();
+      supabaseUrlInput.value = config.url || '';
+      supabaseAnonKeyInput.value = config.anonKey || '';
+    }
+
+    function initSupabaseFromConfig() {
+      const config = getConfig();
+      if (!config.url || !config.anonKey) return false;
+      supabase = createClient(config.url, config.anonKey, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+      });
+      return true;
+    }
+
+    function setMode(mode) {
+      document.body.classList.remove('mode-keyboard', 'mode-draw');
+      document.body.classList.add(mode === 'draw' ? 'mode-draw' : 'mode-keyboard');
+      btnKeyboard.classList.toggle('active', mode === 'keyboard');
+      btnDraw.classList.toggle('active', mode === 'draw');
+      localStorage.setItem(MODE_KEY, mode);
+    }
+
+    function loadMode() {
+      setMode(localStorage.getItem(MODE_KEY) || 'keyboard');
+    }
+
+    function updateStatus(text) {
+      if (!saveStatus) return;
+      saveStatus.textContent = text;
+      clearTimeout(updateStatus._timer);
+      updateStatus._timer = setTimeout(() => { saveStatus.textContent = 'Listo'; }, 1800);
+    }
+
+    function showAppMessage(text, type = 'warn') {
+      appMessage.textContent = text;
+      appMessage.className = `message ${type}`;
+      appMessage.classList.remove('hidden');
+    }
+
+    function hideAppMessage() {
+      appMessage.classList.add('hidden');
+    }
+
+    function showAuthMessage(text, type = 'warn') {
+      authMessage.textContent = text;
+      authMessage.className = `message ${type}`;
+    }
+
+    function currentDateKey() {
+      return entryDate.value || todayStr();
+    }
+
+    function collectPayload() {
+      const payload = {};
+      fields.forEach(el => {
+        payload[el.dataset.field] = el.value || '';
+      });
+      payload.displayDate = currentDateKey();
+      return payload;
+    }
+
+    function populateFields(payload = {}, date = todayStr()) {
+      fields.forEach(el => {
+        const key = el.dataset.field;
+        el.value = payload[key] || (key === 'displayDate' ? date : '');
+      });
+    }
+
+    async function saveEntry(manual = false) {
+      if (!supabase || !currentUser) return;
+      const payload = collectPayload();
+      const entry_date = currentDateKey();
+      const { error } = await supabase
+        .from('journal_entries')
+        .upsert({ user_id: currentUser.id, entry_date, payload }, { onConflict: 'user_id,entry_date' });
+
+      if (error) {
+        showAppMessage(`No pude guardar: ${error.message}`, 'error');
+        updateStatus('Error al guardar');
+        return;
+      }
+
+      hideAppMessage();
+      updateStatus(manual ? 'Guardado en nube' : 'Auto guardado');
+      await loadHistory();
+    }
+
+    function queueAutosave() {
+      clearTimeout(autoSaveTimer);
+      autoSaveTimer = setTimeout(() => { saveEntry(false); }, 900);
+    }
+
+    async function loadEntry(date) {
+      if (!supabase || !currentUser) return;
+      const { data, error } = await supabase
+        .from('journal_entries')
+        .select('payload')
+        .eq('user_id', currentUser.id)
+        .eq('entry_date', date)
+        .maybeSingle();
+
+      if (error) {
+        showAppMessage(`No pude cargar el registro: ${error.message}`, 'error');
+        return;
+      }
+
+      populateFields(data?.payload || {}, date);
+      hideAppMessage();
+      updateStatus('Registro cargado');
+    }
+
+    async function clearCurrentDay() {
+      if (!supabase || !currentUser) return;
+      if (!confirm('¿Eliminar el contenido guardado de este día?')) return;
+      const date = currentDateKey();
+      const { error } = await supabase
+        .from('journal_entries')
+        .delete()
+        .eq('user_id', currentUser.id)
+        .eq('entry_date', date);
+
+      if (error) {
+        showAppMessage(`No pude limpiar el día: ${error.message}`, 'error');
+        return;
+      }
+
+      populateFields({}, date);
+      await loadHistory();
+      updateStatus('Día limpiado');
+    }
+
+    async function loadHistory() {
+      if (!supabase || !currentUser) return;
+      historyList.innerHTML = '<div class="empty-note">Cargando historial...</div>';
+      const { data, error } = await supabase
+        .from('journal_entries')
+        .select('entry_date, payload, updated_at')
+        .eq('user_id', currentUser.id)
+        .order('entry_date', { ascending: false })
+        .limit(30);
+
+      if (error) {
+        historyList.innerHTML = `<div class="empty-note">No pude cargar el historial.</div>`;
+        showAppMessage(`No pude cargar historial: ${error.message}`, 'error');
+        return;
+      }
+
+      if (!data || !data.length) {
+        historyList.innerHTML = '<div class="empty-note">Todavía no hay registros guardados.</div>';
+        return;
+      }
+
+      historyList.innerHTML = '';
+      data.forEach(item => {
+        const payload = item.payload || {};
+        const preview = [payload.dayTheme, payload.innerState, payload.mentalDump, payload.releaseTonight]
+          .filter(Boolean)
+          .join(' · ')
+          .slice(0, 180);
+        const wrap = document.createElement('div');
+        wrap.className = 'history-item';
+        wrap.innerHTML = `
+          <div class="history-title">${escapeHtml(item.entry_date)} · ${escapeHtml(payload.dayTheme || 'Sin tema')}</div>
+          <div class="history-preview">${escapeHtml(preview || 'Registro guardado')}</div>
+          <div class="history-actions">
+            <button class="chip" type="button" data-open="${item.entry_date}">Abrir</button>
+          </div>
+        `;
+        historyList.appendChild(wrap);
+      });
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    async function handleSession() {
+      if (!supabase) return;
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        showAuthMessage(`Problema al leer la sesión: ${error.message}`, 'error');
+        return;
+      }
+      currentUser = data.session?.user || null;
+      renderBySession();
+    }
+
+    function renderBySession() {
+      if (currentUser) {
+        authView.classList.add('hidden');
+        appView.classList.remove('hidden');
+        currentUserEmail.textContent = currentUser.email || 'Sesión activa';
+        entryDate.value = entryDate.value || todayStr();
+        loadEntry(entryDate.value);
+        loadHistory();
+      } else {
+        appView.classList.add('hidden');
+        authView.classList.remove('hidden');
+      }
+    }
+
+    async function signIn() {
+      if (!supabase) return showAuthMessage('Primero guarda la configuración de Supabase.', 'warn');
+      const email = authEmail.value.trim();
+      const password = authPassword.value;
+      if (!email || !password) return showAuthMessage('Ingresa email y contraseña.', 'warn');
+
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return showAuthMessage(`No pude iniciar sesión: ${error.message}`, 'error');
+      showAuthMessage('Sesión iniciada correctamente.', 'ok');
+      await handleSession();
+    }
+
+    async function signUp() {
+      if (!supabase) return showAuthMessage('Primero guarda la configuración de Supabase.', 'warn');
+      const email = authEmail.value.trim();
+      const password = authPassword.value;
+      if (!email || !password) return showAuthMessage('Ingresa email y contraseña.', 'warn');
+
+      const redirectTo = window.location.href;
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: redirectTo }
+      });
+      if (error) return showAuthMessage(`No pude crear la cuenta: ${error.message}`, 'error');
+      showAuthMessage('Cuenta creada. Revisa tu correo si tienes confirmación por email activada.', 'ok');
+    }
+
+    async function resetPassword() {
+      if (!supabase) return showAuthMessage('Primero guarda la configuración de Supabase.', 'warn');
+      const email = authEmail.value.trim();
+      if (!email) return showAuthMessage('Escribe tu email para enviar el reset.', 'warn');
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.href
+      });
+      if (error) return showAuthMessage(`No pude enviar el reset: ${error.message}`, 'error');
+      showAuthMessage('Te envié un correo de recuperación.', 'ok');
+    }
+
+    async function signOut() {
+      if (!supabase) return;
+      await supabase.auth.signOut();
+      currentUser = null;
+      renderBySession();
+      showAuthMessage('Sesión cerrada.', 'ok');
+    }
+
+    saveConfigBtn.addEventListener('click', async () => {
+      const url = supabaseUrlInput.value.trim();
+      const anonKey = supabaseAnonKeyInput.value.trim();
+      if (!url || !anonKey) return showAuthMessage('Completa URL y anon key.', 'warn');
+      setConfig({ url, anonKey });
+      initSupabaseFromConfig();
+      showAuthMessage('Configuración guardada. Ya puedes iniciar sesión o crear tu cuenta.', 'ok');
+      await handleSession();
+    });
+
+    clearConfigBtn.addEventListener('click', () => {
+      clearConfig();
+      location.reload();
+    });
+
+    signInBtn.addEventListener('click', signIn);
+    signUpBtn.addEventListener('click', signUp);
+    forgotBtn.addEventListener('click', resetPassword);
+    btnSignOut.addEventListener('click', signOut);
+
+    btnKeyboard.addEventListener('click', () => setMode('keyboard'));
+    btnDraw.addEventListener('click', () => setMode('draw'));
+    btnToday.addEventListener('click', async () => {
+      entryDate.value = todayStr();
+      await loadEntry(entryDate.value);
+    });
+    btnClearDay.addEventListener('click', clearCurrentDay);
+    btnSaveCloud.addEventListener('click', () => saveEntry(true));
+    btnReloadCloud.addEventListener('click', async () => {
+      await loadEntry(currentDateKey());
+      await loadHistory();
+    });
+
+    entryDate.addEventListener('change', async () => {
+      await loadEntry(currentDateKey());
+    });
+
+    fields.forEach(el => {
+      el.addEventListener('input', queueAutosave);
+      el.addEventListener('change', queueAutosave);
+    });
+
+    historyList.addEventListener('click', async (e) => {
+      const openDate = e.target.getAttribute('data-open');
+      if (!openDate) return;
+      entryDate.value = openDate;
+      await loadEntry(openDate);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    function bootstrap() {
+      fillConfigInputs();
+      loadMode();
+      const configured = initSupabaseFromConfig();
+      if (!configured) {
+        showAuthMessage('Falta la configuración de Supabase. Guarda la URL y la anon key para activar la app.', 'warn');
+        return;
+      }
+
+      supabase.auth.onAuthStateChange((_event, session) => {
+        currentUser = session?.user || null;
+        renderBySession();
+      });
+
+      handleSession();
+    }
+
+    bootstrap();
+  </script>
+</body>
+</html>
