@@ -3,22 +3,176 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Planner TDAH v8 fix</title>
+  <title>Planner TDAH v8 reconstruido</title>
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#7b6a58" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{--bg:#f6f3ee;--paper:#fffdf9;--ink:#2f2a24;--muted:#6d655c;--line:#d8cfc3;--accent:#7b6a58;--soft:#efe7dc;--ok:#dcebdc;--warn:#f3d9d9;--shadow:0 8px 24px rgba(0,0,0,.06)}
+    body.dark{--bg:#171615;--paper:#23211f;--ink:#f1ece6;--muted:#b8afa4;--line:#3a342f;--accent:#b69b7f;--soft:#312a24;--ok:#223326;--warn:#3b2525;--shadow:0 8px 24px rgba(0,0,0,.28)}
+    *{box-sizing:border-box} body{margin:0;font-family:Arial,sans-serif;background:var(--bg);color:var(--ink)}
+    .app{max-width:1200px;margin:auto;padding:16px}.hidden{display:none!important}
+    .topbar,.card,.page,.auth{background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+    .topbar{position:sticky;top:8px;z-index:10;padding:10px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+    .toolbar{display:flex;gap:8px;flex-wrap:wrap}.layout{display:grid;grid-template-columns:320px 1fr;gap:14px}.sidebar{display:grid;gap:12px}
+    .card,.page,.auth{padding:16px}.auth{max-width:920px;margin:24px auto}.hero{background:linear-gradient(135deg,var(--soft) 0%,var(--paper) 100%)}
+    .grid{display:grid;gap:12px}.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}
+    input,textarea,select{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--paper);color:var(--ink);font:inherit}
+    textarea{min-height:110px;resize:vertical}.big{min-height:200px}
+    .btn{border:none;border-radius:999px;padding:10px 14px;background:var(--accent);color:#fff;cursor:pointer}.btn.alt{background:#c9c0b6;color:#2f2a24}.btn.danger{background:#b65454}.btn.ok{background:#5f8f60}
+    .tiny{font-size:12px;color:var(--muted)} .message{padding:12px;border-radius:12px;border:1px solid var(--line);margin-bottom:12px}.warn{background:var(--warn)} .okbg{background:var(--ok)} .softbg{background:var(--soft)}
+    .metric{padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--paper)} .metric .value{font-size:26px;font-weight:700} .metric .label{font-size:12px;color:var(--muted);text-transform:uppercase}
+    .history-item{border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px}.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}.day{border:1px solid var(--line);border-radius:12px;min-height:72px;padding:8px;cursor:pointer;background:var(--paper)} .day.active{outline:2px solid var(--accent)} .day.has{background:var(--soft)} .head{text-align:center;color:var(--muted);font-size:12px;font-weight:700}
+    .theme-row{display:flex;gap:8px;flex-wrap:wrap}.theme-chip{padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--paper);cursor:pointer}
+    @media (max-width:1100px){.layout{grid-template-columns:1fr}} @media (max-width:900px){.g2,.g3{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
-  <script>
-    let sbClient = null;
-    function initSupabase(){
-      const url = localStorage.getItem('supabase_url');
-      const key = localStorage.getItem('supabase_key');
-      if(!url || !key) return false;
-      sbClient = window.supabase.createClient(url, key);
-      return true;
-    }
-    initSupabase();
-  </script>
+<div class="app">
+  <div id="authView" class="auth">
+    <div class="page hero">
+      <h1>Planner TDAH reconstruido</h1>
+      <p>Versión estable para GitHub Pages + Supabase, con tema oscuro, calendario, historial y buscador.</p>
+    </div>
+    <div id="authMsg" class="message warn">Primero guarda tu configuración de Supabase.</div>
+    <div class="grid g2">
+      <div class="card softbg">
+        <h2>Configuración</h2>
+        <div class="tiny">Supabase URL</div>
+        <input id="cfgUrl" type="text" placeholder="https://tu-proyecto.supabase.co" />
+        <div class="tiny" style="margin-top:10px">Anon / publishable key</div>
+        <textarea id="cfgKey" placeholder="Pega aquí tu anon key"></textarea>
+        <div class="toolbar" style="margin-top:10px"><button class="btn" id="saveCfg">Guardar configuración</button><button class="btn alt" id="clearCfg">Limpiar</button></div>
+      </div>
+      <div class="card">
+        <h2>Acceso</h2>
+        <div class="tiny">Email</div>
+        <input id="email" type="email" />
+        <div class="tiny" style="margin-top:10px">Contraseña</div>
+        <input id="password" type="password" />
+        <div class="toolbar" style="margin-top:10px"><button class="btn" id="signIn">Iniciar sesión</button><button class="btn alt" id="signUp">Crear cuenta</button><button class="btn alt" id="forgot">Reset</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="appView" class="hidden">
+    <div class="topbar">
+      <div class="toolbar"><button class="btn alt" id="prevDay">← Día anterior</button><button class="btn alt" id="todayBtn">Hoy</button><button class="btn alt" id="nextDay">Día siguiente →</button></div>
+      <div class="toolbar"><button class="btn alt" id="themeToggle">Cambiar tema</button><button class="btn ok" id="saveNow">Guardar</button><button class="btn alt" id="signOutBtn">Salir</button></div>
+      <div id="status" class="tiny">Listo</div>
+    </div>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <div class="card"><h3>Usuario</h3><div id="userEmail" class="tiny"></div></div>
+        <div class="card"><div class="tiny">Fecha del registro</div><input type="date" id="entryDate" /></div>
+        <div class="card"><h3>Tema visual</h3><div class="theme-row"><button class="theme-chip" id="themeLight">☀️ Claro</button><button class="theme-chip" id="themeDark">🌙 Oscuro</button></div></div>
+        <div class="card"><h3>Buscar en historial</h3><input id="historySearch" type="text" placeholder="Buscar palabra o frase" /></div>
+        <div class="grid g2">
+          <div class="metric"><div class="value" id="mStreak">0</div><div class="label">Racha</div></div>
+          <div class="metric"><div class="value" id="mTasks">0%</div><div class="label">Bloques hechos</div></div>
+          <div class="metric"><div class="value" id="mGratitude">0</div><div class="label">Gratitud</div></div>
+          <div class="metric"><div class="value" id="mDump">0</div><div class="label">Writing</div></div>
+        </div>
+        <div class="card"><h3>Calendario</h3><div class="toolbar"><button class="btn alt" id="prevMonth">← Mes</button><input id="monthPicker" type="month" /><button class="btn alt" id="nextMonth">Mes →</button></div><div id="calendar" class="calendar" style="margin-top:12px"></div></div>
+        <div class="card"><h3>Historial</h3><div id="history"></div></div>
+      </aside>
+
+      <main>
+        <div id="appMsg" class="message hidden"></div>
+        <section class="page hero"><h1>Planner TDAH</h1><p class="tiny">Busca, escribe, guarda y recupera tus registros por fecha.</p></section>
+        <section class="page">
+          <h2>Dirección del día</h2>
+          <div class="grid g3">
+            <div class="card"><div class="tiny">Tema del día</div><input data-field="dayTheme" type="text" /></div>
+            <div class="card"><div class="tiny">Energía</div><select data-field="energyLevel"><option value="">Selecciona</option><option>Alta</option><option>Media</option><option>Baja</option></select></div>
+            <div class="card"><div class="tiny">Frase ancla</div><input data-field="anchorPhrase" type="text" /></div>
+          </div>
+          <div class="grid g2" style="margin-top:12px">
+            <div class="card okbg"><h3>Gratitud presente</h3><textarea data-field="gratitudeMorning"></textarea></div>
+            <div class="card softbg"><h3>Visión agradecida</h3><textarea data-field="visionGrateful"></textarea></div>
+          </div>
+          <div class="grid g2" style="margin-top:12px">
+            <div class="card"><h3>Estado interior</h3><textarea data-field="innerState"></textarea></div>
+            <div class="card"><h3>Mis 3 prioridades reales</h3><textarea data-field="topPriorities"></textarea></div>
+          </div>
+          <div class="card" style="margin-top:12px">
+            <h3>Timeboxing</h3>
+            <div class="grid g3">
+              <input data-field="tb1Task" type="text" placeholder="Bloque 1"><select data-field="tb1Status"><option value="">Estado</option><option>Pendiente</option><option>Hecho</option><option>Movido</option></select><input data-field="tb1Time" type="text" placeholder="Hora">
+              <input data-field="tb2Task" type="text" placeholder="Bloque 2"><select data-field="tb2Status"><option value="">Estado</option><option>Pendiente</option><option>Hecho</option><option>Movido</option></select><input data-field="tb2Time" type="text" placeholder="Hora">
+              <input data-field="tb3Task" type="text" placeholder="Bloque 3"><select data-field="tb3Status"><option value="">Estado</option><option>Pendiente</option><option>Hecho</option><option>Movido</option></select><input data-field="tb3Time" type="text" placeholder="Hora">
+              <input data-field="tb4Task" type="text" placeholder="Bloque 4"><select data-field="tb4Status"><option value="">Estado</option><option>Pendiente</option><option>Hecho</option><option>Movido</option></select><input data-field="tb4Time" type="text" placeholder="Hora">
+              <input data-field="tb5Task" type="text" placeholder="Bloque 5"><select data-field="tb5Status"><option value="">Estado</option><option>Pendiente</option><option>Hecho</option><option>Movido</option></select><input data-field="tb5Time" type="text" placeholder="Hora">
+            </div>
+          </div>
+        </section>
+        <section class="page">
+          <h2>Writing nocturno</h2>
+          <div class="card softbg"><h3>Basura mental</h3><textarea data-field="mentalDump" class="big"></textarea></div>
+          <div class="grid g2" style="margin-top:12px">
+            <div class="card"><h3>Si algo me dolió hoy</h3><textarea data-field="hurtToday"></textarea></div>
+            <div class="card"><h3>Lo que suelto esta noche</h3><textarea data-field="releaseTonight"></textarea></div>
+          </div>
+          <div class="grid g2" style="margin-top:12px">
+            <div class="card okbg"><h3>Gratitud de cierre</h3><textarea data-field="gratitudeNight"></textarea></div>
+            <div class="card"><h3>Cierre mental</h3><textarea data-field="closingPhrase"></textarea></div>
+          </div>
+          <div class="grid g2" style="margin-top:12px">
+            <div class="card"><h3>Distracciones a vigilar</h3><textarea data-field="distractions"></textarea></div>
+            <div class="card"><h3>Notas libres</h3><textarea data-field="freeNotes"></textarea></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+</div>
+<script>
+const CONFIG_KEY='planner_rebuilt_cfg', THEME_KEY='planner_rebuilt_theme';
+let sbClient=null,currentUser=null,historyCache=[],autoSaveTimer=null;
+const $=id=>document.getElementById(id), fields=Array.from(document.querySelectorAll('[data-field]'));
+const todayStr=()=>new Date().toISOString().slice(0,10);
+const parseDate=s=>{const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d)};
+const formatOffset=(base,n)=>{const d=parseDate(base||todayStr()); d.setDate(d.getDate()+n); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+const monthStr=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+const getCfg=()=>{try{return JSON.parse(localStorage.getItem(CONFIG_KEY))||{}}catch{return {}}};
+const setCfg=cfg=>localStorage.setItem(CONFIG_KEY, JSON.stringify(cfg));
+const clearCfg=()=>localStorage.removeItem(CONFIG_KEY);
+function showAuth(msg,type='warn'){const el=$('authMsg'); el.textContent=msg; el.className=`message ${type}`}
+function showApp(msg,type='warn'){const el=$('appMsg'); el.textContent=msg; el.className=`message ${type}`; el.classList.remove('hidden')}
+function hideApp(){ $('appMsg').classList.add('hidden') }
+function setStatus(msg){$('status').textContent=msg; clearTimeout(setStatus.t); setStatus.t=setTimeout(()=>{$('status').textContent='Listo'},2000)}
+function applyTheme(theme){document.body.classList.toggle('dark', theme==='dark'); localStorage.setItem(THEME_KEY, theme)}
+function loadTheme(){applyTheme(localStorage.getItem(THEME_KEY)||'light')}
+function initSb(){const cfg=getCfg(); $('cfgUrl').value=cfg.url||''; $('cfgKey').value=cfg.key||''; if(!cfg.url||!cfg.key) return false; sbClient=window.supabase.createClient(cfg.url,cfg.key); return true}
+function currentDateKey(){return $('entryDate').value || todayStr()}
+function collectPayload(){const p={}; fields.forEach(f=>p[f.dataset.field]=f.value||''); return p}
+function fillPayload(payload={}){fields.forEach(f=>{f.value=payload[f.dataset.field]||''}); updateMetrics()}
+function updateMetrics(){const done=fields.filter(f=>f.dataset.field.includes('Status')&&f.value==='Hecho').length; const total=fields.filter(f=>f.dataset.field.includes('Status')).length||1; $('mTasks').textContent=Math.round(done/total*100)+'%'; $('mGratitude').textContent=((($('historySearch').value||'').trim())?'':'') || (((document.querySelector('[data-field="gratitudeMorning"]').value||'').trim()|| (document.querySelector('[data-field="gratitudeNight"]').value||'').trim())?'1':'0'); $('mDump').textContent=((document.querySelector('[data-field="mentalDump"]').value||'').trim())?'1':'0'}
+async function saveEntry(manual=false){if(!sbClient||!currentUser) return; const payload=collectPayload(); const entry_date=currentDateKey(); const {error}=await sbClient.from('journal_entries').upsert({user_id:currentUser.id, entry_date, payload},{onConflict:'user_id,entry_date'}); if(error){showApp('No pude guardar: '+error.message,'error'); setStatus('Error'); return;} hideApp(); setStatus(manual?'Guardado':'Auto guardado'); await loadHistory()}
+function queueAutosave(){clearTimeout(autoSaveTimer); setStatus('Escribiendo...'); autoSaveTimer=setTimeout(()=>saveEntry(false),1500)}
+async function loadEntry(date){if(!sbClient||!currentUser) return; const {data,error}=await sbClient.from('journal_entries').select('payload').eq('user_id',currentUser.id).eq('entry_date',date).maybeSingle(); if(error){showApp('No pude cargar: '+error.message,'error'); return;} fillPayload(data?.payload||{}); setStatus('Registro cargado')}
+function renderHistory(){const q=($('historySearch').value||'').trim().toLowerCase(); let rows=historyCache; if(q){rows=rows.filter(r=>r.entry_date.includes(q)||JSON.stringify(r.payload||{}).toLowerCase().includes(q))} if(!rows.length){$('history').innerHTML='<div class="tiny">No hay resultados.</div>'; return;} $('history').innerHTML=rows.slice(0,30).map(r=>`<div class="history-item"><h4>${r.entry_date}</h4><div class="tiny">${((r.payload&&r.payload.mentalDump)||'').slice(0,90)}</div><div style="margin-top:8px"><button class="btn alt" data-open="${r.entry_date}">Abrir</button></div></div>`).join('')}
+function renderCalendar(){const wrap=$('calendar'); wrap.innerHTML=''; ['L','M','X','J','V','S','D'].forEach(d=>{const e=document.createElement('div'); e.className='head'; e.textContent=d; wrap.appendChild(e)}); const mv=$('monthPicker').value||todayStr().slice(0,7); const [y,m]=mv.split('-').map(Number); const first=new Date(y,m-1,1), last=new Date(y,m,0), offset=(first.getDay()+6)%7, total=last.getDate(); const entries=new Set(historyCache.map(x=>x.entry_date)); for(let i=0;i<offset;i++){const e=document.createElement('div'); e.className='day muted'; wrap.appendChild(e)} for(let d=1; d<=total; d++){const ds=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`; const e=document.createElement('div'); e.className='day'; if(entries.has(ds)) e.classList.add('has'); if(ds===currentDateKey()) e.classList.add('active'); e.dataset.date=ds; e.innerHTML=`<div>${d}</div>`; wrap.appendChild(e)}}
+function updateStreak(){const dates=historyCache.map(x=>x.entry_date).sort().reverse(); let streak=0,c=todayStr(); for(const d of dates){if(d===c){streak++; c=formatOffset(c,-1)} else break} $('mStreak').textContent=String(streak)}
+async function loadHistory(){if(!sbClient||!currentUser) return; const {data,error}=await sbClient.from('journal_entries').select('entry_date,payload').eq('user_id',currentUser.id).order('entry_date',{ascending:false}).limit(365); if(error){showApp('No pude cargar historial: '+error.message,'error'); return;} historyCache=data||[]; renderHistory(); renderCalendar(); updateStreak()}
+async function handleSession(){if(!sbClient) return; const {data}=await sbClient.auth.getSession(); currentUser=data.session?.user||null; if(!currentUser) return; $('authView').classList.add('hidden'); $('appView').classList.remove('hidden'); $('userEmail').textContent=currentUser.email||''; $('entryDate').value=todayStr(); $('monthPicker').value=todayStr().slice(0,7); await loadEntry(todayStr()); await loadHistory()}
+$('saveCfg').onclick=()=>{const url=$('cfgUrl').value.trim(), key=$('cfgKey').value.trim(); if(!url||!key){showAuth('Completa URL y anon key'); return;} setCfg({url,key}); location.reload()};
+$('clearCfg').onclick=()=>{clearCfg(); location.reload()};
+$('signIn').onclick=async()=>{const {error}=await sbClient.auth.signInWithPassword({email:$('email').value,password:$('password').value}); if(error) return showAuth(error.message,'error'); location.reload()};
+$('signUp').onclick=async()=>{const {error}=await sbClient.auth.signUp({email:$('email').value,password:$('password').value}); if(error) return showAuth(error.message,'error'); showAuth('Cuenta creada. Revisa tu correo.','ok')};
+$('forgot').onclick=async()=>{const {error}=await sbClient.auth.resetPasswordForEmail($('email').value); if(error) return showAuth(error.message,'error'); showAuth('Correo enviado.','ok')};
+$('prevDay').onclick=()=>{$('entryDate').value=formatOffset(currentDateKey(),-1); loadEntry(currentDateKey()); renderCalendar()};
+$('nextDay').onclick=()=>{$('entryDate').value=formatOffset(currentDateKey(),1); loadEntry(currentDateKey()); renderCalendar()};
+$('todayBtn').onclick=()=>{$('entryDate').value=todayStr(); $('monthPicker').value=todayStr().slice(0,7); loadEntry(currentDateKey()); renderCalendar()};
+$('saveNow').onclick=()=>saveEntry(true); $('signOutBtn').onclick=async()=>{await sbClient.auth.signOut(); location.reload()};
+$('themeToggle').onclick=()=>applyTheme(document.body.classList.contains('dark')?'light':'dark'); $('themeLight').onclick=()=>applyTheme('light'); $('themeDark').onclick=()=>applyTheme('dark');
+$('entryDate').addEventListener('change',()=>{loadEntry(currentDateKey()); renderCalendar()}); $('monthPicker').addEventListener('change',renderCalendar); $('historySearch').addEventListener('input',renderHistory);
+$('prevMonth').onclick=()=>{const [y,m]=$('monthPicker').value.split('-').map(Number); $('monthPicker').value=monthStr(new Date(y,m-2,1)); renderCalendar()};
+$('nextMonth').onclick=()=>{const [y,m]=$('monthPicker').value.split('-').map(Number); $('monthPicker').value=monthStr(new Date(y,m,1)); renderCalendar()};
+document.addEventListener('click',e=>{const b=e.target.getAttribute('data-open'); if(b){$('entryDate').value=b; $('monthPicker').value=b.slice(0,7); loadEntry(b); renderCalendar()} const d=e.target.closest('.day'); if(d&&d.dataset.date){$('entryDate').value=d.dataset.date; loadEntry(d.dataset.date); renderCalendar()}});
+fields.forEach(f=>{f.addEventListener('input',queueAutosave); f.addEventListener('change',queueAutosave)});
+loadTheme(); initSb(); if(sbClient) handleSession();
+</script>
 </body>
 </html>

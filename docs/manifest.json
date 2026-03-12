@@ -1,7 +1,7 @@
 {
   "name": "Planner Terapéutico TDAH v8",
   "short_name": "Planner TDAH",
-  "description": "Planner terapéutico con buscador de historial, modo oscuro, calendario, timeboxing, writing nocturno y nube.",
+  "description": "Planner terapéutico con buscador de historial, modo oscuro, calendario y nube.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
