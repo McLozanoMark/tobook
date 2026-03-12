@@ -1,7 +1,7 @@
 {
-  "name": "Planner Terapéutico TDAH v8",
+  "name": "Planner Terapéutico TDAH v8.1 Tablet",
   "short_name": "Planner TDAH",
-  "description": "Planner terapéutico con buscador de historial, modo oscuro, calendario y nube.",
+  "description": "Planner terapéutico con distribución tipo agenda, buscador, modo oscuro, calendario y nube.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
